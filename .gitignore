@@ -42,8 +42,8 @@ out/
 
 ### react project ###
 **/node_modules/
-front/*.md
-front/*.json
+client/*.md
+client/*.json
 
 # dependencies
 /node_modules
