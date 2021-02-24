@@ -1,0 +1,51 @@
+@font-face {
+  font-family: "awesome-font";
+  font-style: normal;
+  font-weight: 400;
+  src: url("./fonts/fontawesome-webfont.woff2") format("woff2");
+}
+
+html {
+  height: 100%;
+  width: 100%;
+}
+
+h1,
+h2,
+h3,
+h4,
+button {
+  padding: 0;
+  margin: 0;
+}
+
+button {
+  border: none;
+  outline: none;
+  background-color: transparent;
+  cursor: pointer;
+}
+
+body,
+#root {
+  height: 100%;
+  display: block;
+  font-family: "awesome-font";
+  background-color: rgb(250, 250, 250);
+}
+
+* {
+  box-sizing: inherit;
+}
+
+#root {
+  box-sizing: border-box;
+}
+
+div {
+  display: block;
+}
+
+p {
+  margin: 0;
+}

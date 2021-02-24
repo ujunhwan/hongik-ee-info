@@ -1,0 +1,24 @@
+.PageTemplate {
+  height: 100%;
+  text-align: center;
+}
+
+.contents-wrapper {
+  height: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 4rem;
+  // border: solid 1px grey;
+
+  @media (max-width: 1919px) {
+    width: 1376px;
+  }
+
+  @media (max-width: 1440px) {
+    width: 1024px;
+  }
+
+  @media (max-width: 1056px) {
+    width: calc(100% - 2rem);
+  }
+}
