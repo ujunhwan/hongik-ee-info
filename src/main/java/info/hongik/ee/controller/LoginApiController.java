@@ -1,31 +1,30 @@
 package info.hongik.ee.controller;
 
-import info.hongik.ee.service.NoticeService;
+import info.hongik.ee.domain.LoginInfo;
+import info.hongik.ee.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("api")
+@RequestMapping("/api")
 public class LoginApiController {
-    private final NoticeService noticeService;
+
+    private final UserService userService;
 
     @Autowired
-    public LoginApiController(NoticeService noticeService) {
-        this.noticeService = noticeService;
+    public LoginApiController(UserService userService) {
+        this.userService = userService;
     }
 
-    @GetMapping("login")
-    public String login() {
-        System.out.println("get login");
-        return "login";
-    }
+    @CrossOrigin(origins = "*", allowedHeaders = "*")
+    @PostMapping(value = "/login", produces = "application/json; charset=UTF-8")
+    public String loginPost(@RequestBody LoginInfo loginInfo) {
+        System.out.println(loginInfo.getId());
 
-    @GetMapping("logout")
-    public String logout() {
-        System.out.println("get logout");
-        return "redirect:/";
+        /* todo: loginInfo 로 클래스넷 login 후 Crawling */
+        userService.scrapeUserInfo(loginInfo);
+
+        /* todo: Crawling한 정보들을 가공해서 리턴 */
+        return "post response";
     }
 }
