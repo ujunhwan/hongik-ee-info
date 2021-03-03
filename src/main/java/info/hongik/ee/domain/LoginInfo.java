@@ -16,5 +16,4 @@ public class LoginInfo {
         Id = id;
         Pw = pw;
     }
-
 }

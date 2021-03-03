@@ -1,12 +1,12 @@
 package info.hongik.ee.service;
 
-
 import info.hongik.ee.domain.LoginInfo;
-import info.hongik.ee.domain.User;
-import org.jsoup.Connection;
+import info.hongik.ee.repository.ClassInfoRepository;
+import info.hongik.ee.repository.UserInfoRepository;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Cookie;
 import org.openqa.selenium.WebDriver;
@@ -16,14 +16,19 @@ import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class UserServiceImpl implements UserService {
+    private final UserInfoRepository userInfoRepository;
+    private final ClassInfoRepository classInfoRepository;
+
+    public UserServiceImpl(UserInfoRepository userInfoRepository, ClassInfoRepository classInfoRepository) {
+        this.userInfoRepository = userInfoRepository;
+        this.classInfoRepository = classInfoRepository;
+    }
+
     @Override
-    public boolean userLogin(LoginInfo loginInfo) {
+    public boolean login(LoginInfo loginInfo) {
         String loginPageUrl = "http://www.hongik.ac.kr/login.do?Refer=https://cn.hongik.ac.kr/";
         String classNetTitle = "학생 클래스넷";
 
@@ -41,7 +46,7 @@ public class UserServiceImpl implements UserService {
         WebDriver driver = new ChromeDriver(options);
         driver.get(loginPageUrl);
 
-        /* login session 얻는 과정 */
+        /* login session */
         WebElement element;
         element = driver.findElement(By.xpath(idXpath));
         element.sendKeys(loginInfo.getId());
@@ -52,20 +57,21 @@ public class UserServiceImpl implements UserService {
         element = driver.findElement(By.xpath(loginButtonXpath));
         element.submit();
 
-        // submit 있다면 클릭
-        if(ExpectedConditions.alertIsPresent().apply(driver) != null) {
+        /* alert click */
+        while(ExpectedConditions.alertIsPresent().apply(driver) != null) {
             driver.switchTo().alert().accept();
         }
-        String currentTitle = driver.getTitle();
 
+        /* login 성공여부 확인 */
+        String currentTitle = driver.getTitle();
         if(currentTitle.equals(classNetTitle)) {
-            Map<String, String> cookies = new HashMap<>();
+            Map<String, String> Cookies = new HashMap<>();
             Set<Cookie> cookieSet = driver.manage().getCookies();
-            for(Cookie cookie : cookieSet) {
-                cookies.put(cookie.getName(), cookie.getValue());
-            }
             driver.quit();
-            scrapeUserInfo(cookies);
+            for(Cookie cookie : cookieSet) {
+                Cookies.put(cookie.getName(), cookie.getValue());
+            }
+            userInfoRepository.saveCookie(Cookies);
             return true;
         }
         driver.quit();
@@ -73,15 +79,28 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void scrapeUserInfo(Map<String, String> cookies) {
+    public void crawlUserInfo() {
         String userAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36";
         String userTotalGradeUrl = "https://cn.hongik.ac.kr/stud/P/01000/01000.jsp";
+        String userInfoUrl = "https://cn.hongik.ac.kr/stud/A/01000/01000.jsp";
 
         Document userTotalGradeDoc = null;
+        Document userInfoDoc = null;
+
+        if(userInfoRepository.findCookie() == null) {
+            return;
+        }
+
         try {
             userTotalGradeDoc = Jsoup.connect(userTotalGradeUrl)
                     .userAgent(userAgent)
-                    .cookies(cookies)
+                    .cookies(userInfoRepository.findCookie())
+                    .timeout(3000)
+                    .get();
+
+            userInfoDoc = Jsoup.connect(userInfoUrl)
+                    .userAgent(userAgent)
+                    .cookies(userInfoRepository.findCookie())
                     .timeout(3000)
                     .get();
         } catch(IOException | NullPointerException e) {
@@ -89,27 +108,54 @@ public class UserServiceImpl implements UserService {
             return;
         }
 
-        // todo: parsing
-        Element totalGradeBody = userTotalGradeDoc.getElementById("body");
-        System.out.println(totalGradeBody.text());
+        /* 학번 */
+        String fullStudentId = userInfoDoc.getElementById("body").selectFirst(".table1").selectFirst("table").selectFirst("tbody").children().first().child(1).text();
+        userInfoRepository.saveStudentId(convertStudentId(fullStudentId));
+
+        /* 총 취득학점 */
+        Element totalGradeTable = userTotalGradeDoc.getElementById("body").selectFirst(".table1").selectFirst("tbody");
+        String acquisition = totalGradeTable.child(0).children().last().children().text();
+        userInfoRepository.saveAcquisition(Long.parseLong(acquisition));
+
+        /* 전체 수강 과목 */
+        Map<Long, String> takenClasses = new HashMap<>();
+        Elements semesters = userTotalGradeDoc.getElementById("body").select(".table0");
+        for(Element gradeTable : semesters) {
+            Elements rows = gradeTable.selectFirst("tbody").children();
+            for(Element row : rows) {
+                Elements classInfo = row.children();
+                if(row.nextElementSibling() == null) continue;
+                if(isTakenClass(classInfo)) {
+                    Long classId = Long.parseLong(classInfo.first().text());
+                    String className = classInfo.first().nextElementSibling().text();
+                    Long fieldId = classInfoRepository.getFieldIdByClass(classId);
+                    userInfoRepository.saveTakenClass(classId, fieldId, className);
+                }
+            }
+        }
     }
 
     @Override
-    public HashMap<String, Long> classifySubjects(HashSet<Long> subjects) {
-        HashMap<String, Long> classified = new HashMap<>();
-        HashMap<Long, String> subjectCodeByField = getSubjectCodeByField();
-
-        for(Long subject : subjects) {
-            classified.put(subjectCodeByField.get(subject), subject);
-        }
-
-        return classified;
+    public List<Long> getClassifiedClasses(Long fieldId) {
+        return userInfoRepository.findClassesByField(fieldId);
     }
 
-    public HashMap<Long, String> getSubjectCodeByField() {
-        // DB에서 가져옴
-        // 학수번호, 분야
-        HashMap<Long, String> subjectCode = new HashMap<>();
-        return subjectCode;
+    private boolean isTakenClass(Elements subjectInfo) {
+        return !subjectInfo.last().text().equals("재수강") && !subjectInfo.last().previousElementSibling().text().equals("F");
+    }
+
+    private Long convertStudentId(String fullStudentId) {
+        Long studentId = 0L;
+
+        if(fullStudentId.charAt(0) == 'B') {
+            studentId += 10L;
+        } else if(fullStudentId.charAt(0) == 'C') {
+            studentId += 20L;
+        } else if(fullStudentId.charAt(0) == 'D') {
+            studentId += 30L;
+        }
+
+        studentId += Long.parseLong(String.valueOf(fullStudentId.charAt(1)));
+        return studentId;
     }
 }
