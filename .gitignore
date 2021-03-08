@@ -44,6 +44,7 @@ out/
 **/node_modules/
 client/*.md
 client/*.json
+!**/package.json
 
 # dependencies
 /node_modules
