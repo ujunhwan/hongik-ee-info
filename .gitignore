@@ -8,6 +8,9 @@ gradle/
 gradlew.bat
 *.gradle
 
+### SECRET_KEY ###
+**/SecurityServiceImpl.java
+test/
 
 ### STS ###
 .apt_generated
