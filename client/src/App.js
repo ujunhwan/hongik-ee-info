@@ -7,7 +7,7 @@ import CurrContainer from "./containers/curriculum/Curr";
 import AboutContainer from "./containers/about/About";
 
 import "./App.scss";
-import CommonHeadContainer from "./containers/CommonHeadContainer";
+import CommonHeadContainer from "./containers/common/CommonHeadContainer";
 
 function App() {
   return (

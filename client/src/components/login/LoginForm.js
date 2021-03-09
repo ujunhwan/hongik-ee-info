@@ -4,9 +4,9 @@ import "./LoginForm.scss";
 
 const LoginForm = ({
   handleModalClose,
-  onClickLogin,
-  onChangeId,
-  onChangePw,
+  onSubmitHandler,
+  onIdHandler,
+  onPasswordHandler,
 }) => {
   return (
     <Fragment>
@@ -27,7 +27,7 @@ const LoginForm = ({
                     size="13"
                     maxLength="7"
                     placeholder="학번"
-                    onChange={onChangeId}
+                    onChange={onIdHandler}
                   ></input>
                 </div>
                 <div className="input-pw">
@@ -35,11 +35,11 @@ const LoginForm = ({
                     type="password"
                     size="13"
                     placeholder="비밀번호"
-                    onChange={onChangePw}
+                    onChange={onPasswordHandler}
                   ></input>
                 </div>
               </div>
-              <button className="login-button" onClick={onClickLogin}>
+              <button className="login-button" onClick={onSubmitHandler}>
                 LOGIN
               </button>
             </section>
