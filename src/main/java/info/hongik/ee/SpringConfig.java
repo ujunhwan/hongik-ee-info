@@ -1,9 +1,7 @@
 package info.hongik.ee;
 
-import info.hongik.ee.repository.JpaNoticeRepository;
-import info.hongik.ee.repository.NoticeRepository;
-import info.hongik.ee.service.NoticeService;
-import info.hongik.ee.service.NoticeServiceImpl;
+import info.hongik.ee.repository.*;
+import info.hongik.ee.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,6 +26,26 @@ public class SpringConfig {
     @Bean
     public NoticeRepository noticeRepository() {
         return new JpaNoticeRepository(em);
+    }
+
+    @Bean
+    public UserInfoRepository userInfoRepository() {
+        return new MemoryUserInfoRepository();
+    }
+
+    @Bean
+    public ClassInfoRepository classInfoRepository() {
+        return new MemoryClassInfoRepository();
+    }
+
+    @Bean
+    public UserService userService() {
+        return new UserServiceImpl(userInfoRepository(), classInfoRepository());
+    }
+
+    @Bean
+    public SecurityService securityService() {
+        return new SecurityServiceImpl(userInfoRepository());
     }
 
 }

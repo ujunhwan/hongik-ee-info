@@ -25,11 +25,11 @@ public class UserServiceImpl implements UserService {
     public UserServiceImpl(UserInfoRepository userInfoRepository, ClassInfoRepository classInfoRepository) {
         this.userInfoRepository = userInfoRepository;
         this.classInfoRepository = classInfoRepository;
+        setDriver();
     }
 
     @Override
     public boolean login(LoginInfo loginInfo) {
-        String loginPageUrl = "http://www.hongik.ac.kr/login.do?Refer=https://cn.hongik.ac.kr/";
         String classNetTitle = "학생 클래스넷";
 
         /* 로그인 페이지 input XPath */
@@ -37,14 +37,7 @@ public class UserServiceImpl implements UserService {
         String pwXpath = "//*[@id=\"main\"]/div[2]/div[1]/div[2]/div/table/tbody/tr/td[2]/div/form/div/div/div[1]/div[2]/input";
         String loginButtonXpath = "//*[@id=\"main\"]/div[2]/div[1]/div[2]/div/table/tbody/tr/td[2]/div/form/div/div/div[2]/button";
 
-        /* server에 올릴때 경로 변경해야됨 */
-        System.setProperty("webdriver.chrome.driver", "/Users/junhwan/projects/hongik-ee-info/chromedriver");
-
-        /* selenium driver configuration */
-        ChromeOptions options = new ChromeOptions();
-        options.addArguments("headless");
-        WebDriver driver = new ChromeDriver(options);
-        driver.get(loginPageUrl);
+        WebDriver driver = userInfoRepository.getDriver();
 
         /* login session */
         WebElement element;
@@ -58,20 +51,22 @@ public class UserServiceImpl implements UserService {
         element.submit();
 
         /* alert click */
-        while(ExpectedConditions.alertIsPresent().apply(driver) != null) {
+        if(ExpectedConditions.alertIsPresent().apply(driver) != null) {
             driver.switchTo().alert().accept();
         }
 
         /* login 성공여부 확인 */
         String currentTitle = driver.getTitle();
         if(currentTitle.equals(classNetTitle)) {
-            Map<String, String> Cookies = new HashMap<>();
+            Map<String, String> cookies = new HashMap<>();
             Set<Cookie> cookieSet = driver.manage().getCookies();
             driver.quit();
             for(Cookie cookie : cookieSet) {
-                Cookies.put(cookie.getName(), cookie.getValue());
+                cookies.put(cookie.getName(), cookie.getValue());
             }
-            userInfoRepository.saveCookie(Cookies);
+            userInfoRepository.saveUserId(loginInfo.getId());
+            userInfoRepository.saveStudentId(convertStudentId(loginInfo.getId()));
+            userInfoRepository.saveCookie(cookies);
             return true;
         }
         driver.quit();
@@ -79,43 +74,38 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public boolean logout() {
+        setDriver();
+        return true;
+    }
+
+    @Override
     public void crawlUserInfo() {
         String userAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36";
         String userTotalGradeUrl = "https://cn.hongik.ac.kr/stud/P/01000/01000.jsp";
-        String userInfoUrl = "https://cn.hongik.ac.kr/stud/A/01000/01000.jsp";
 
         Document userTotalGradeDoc = null;
-        Document userInfoDoc = null;
 
-        if(userInfoRepository.findCookie() == null) {
+        if(userInfoRepository.getCookie() == null) {
             return;
         }
 
         try {
             userTotalGradeDoc = Jsoup.connect(userTotalGradeUrl)
                     .userAgent(userAgent)
-                    .cookies(userInfoRepository.findCookie())
+                    .cookies(userInfoRepository.getCookie())
                     .timeout(3000)
                     .get();
 
-            userInfoDoc = Jsoup.connect(userInfoUrl)
-                    .userAgent(userAgent)
-                    .cookies(userInfoRepository.findCookie())
-                    .timeout(3000)
-                    .get();
         } catch(IOException | NullPointerException e) {
             System.out.println(e);
             return;
         }
 
-        /* 학번 */
-        String fullStudentId = userInfoDoc.getElementById("body").selectFirst(".table1").selectFirst("table").selectFirst("tbody").children().first().child(1).text();
-        userInfoRepository.saveStudentId(convertStudentId(fullStudentId));
-
         /* 총 취득학점 */
         Element totalGradeTable = userTotalGradeDoc.getElementById("body").selectFirst(".table1").selectFirst("tbody");
         String acquisition = totalGradeTable.child(0).children().last().children().text();
-        userInfoRepository.saveAcquisition(Long.parseLong(acquisition));
+        userInfoRepository.saveAcquisition(acquisition);
 
         /* 전체 수강 과목 */
         Map<Long, String> takenClasses = new HashMap<>();
@@ -128,8 +118,9 @@ public class UserServiceImpl implements UserService {
                 if(isTakenClass(classInfo)) {
                     Long classId = Long.parseLong(classInfo.first().text());
                     String className = classInfo.first().nextElementSibling().text();
-                    Long fieldId = classInfoRepository.getFieldIdByClass(classId);
-                    userInfoRepository.saveTakenClass(classId, fieldId, className);
+                    System.out.println(classId + " " + className);
+//                    Long fieldId = classInfoRepository.getFieldIdByClass(classId);
+//                    userInfoRepository.saveTakenClass(classId, fieldId, className);
                 }
             }
         }
@@ -137,25 +128,37 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public List<Long> getClassifiedClasses(Long fieldId) {
-        return userInfoRepository.findClassesByField(fieldId);
+        return null;
     }
 
     private boolean isTakenClass(Elements subjectInfo) {
         return !subjectInfo.last().text().equals("재수강") && !subjectInfo.last().previousElementSibling().text().equals("F");
     }
 
-    private Long convertStudentId(String fullStudentId) {
-        Long studentId = 0L;
+    private String convertStudentId(String fullStudentId) {
+        int studentId = 0;
+        char firstDigit = fullStudentId.charAt(0);
+        char secondDigit = fullStudentId.charAt(1);
 
-        if(fullStudentId.charAt(0) == 'B') {
-            studentId += 10L;
-        } else if(fullStudentId.charAt(0) == 'C') {
-            studentId += 20L;
-        } else if(fullStudentId.charAt(0) == 'D') {
-            studentId += 30L;
+        if (firstDigit == 'b' || firstDigit == 'B') {
+            studentId += 10;
+        } else if(firstDigit == 'c' || firstDigit == 'C') {
+            studentId += 20;
+        } else if(firstDigit == 'd' || firstDigit == 'D') {
+            studentId += 30;
         }
 
-        studentId += Long.parseLong(String.valueOf(fullStudentId.charAt(1)));
-        return studentId;
+        studentId += secondDigit - 48;
+        return Integer.toString(studentId);
+    }
+
+    private void setDriver() {
+        String loginPageUrl = "http://www.hongik.ac.kr/login.do?Refer=https://cn.hongik.ac.kr/";
+        System.setProperty("webdriver.chrome.driver", "/Users/junhwan/projects/hongik-ee-info/chromedriver");
+        ChromeOptions options = new ChromeOptions();
+        options.addArguments("headless");
+        WebDriver driver = new ChromeDriver(options);
+        driver.get(loginPageUrl);
+        userInfoRepository.saveDriver(driver);
     }
 }
