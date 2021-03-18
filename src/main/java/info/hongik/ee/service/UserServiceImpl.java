@@ -3,18 +3,11 @@ package info.hongik.ee.service;
 import info.hongik.ee.domain.LoginInfo;
 import info.hongik.ee.repository.ClassInfoRepository;
 import info.hongik.ee.repository.UserInfoRepository;
+import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import org.openqa.selenium.By;
-import org.openqa.selenium.Cookie;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-
 import java.io.IOException;
 import java.util.*;
 
@@ -22,94 +15,56 @@ public class UserServiceImpl implements UserService {
     private final UserInfoRepository userInfoRepository;
     private final ClassInfoRepository classInfoRepository;
 
+    Map<String, String> headers = Map.of("content-type", "application/x-www-form-urlencoded");
+    String loginPageUrl = "https://ap.hongik.ac.kr/login/LoginExec3.php";
+    String cnUrl = "https://cn.hongik.ac.kr";
+    String cnMainUrl = "https://cn.hongik.ac.kr/stud";
+    String gradeUrl = "https://cn.hongik.ac.kr/stud/P/01000/01000.jsp";
+    String userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36";
+
     public UserServiceImpl(UserInfoRepository userInfoRepository, ClassInfoRepository classInfoRepository) {
         this.userInfoRepository = userInfoRepository;
         this.classInfoRepository = classInfoRepository;
-        setDriver();
     }
 
     @Override
     public boolean login(LoginInfo loginInfo) {
-        String classNetTitle = "학생 클래스넷";
-
-        /* 로그인 페이지 input XPath */
-        String idXpath = "//*[@id=\"main\"]/div[2]/div[1]/div[2]/div/table/tbody/tr/td[2]/div/form/div/div/div[1]/div[1]/input";
-        String pwXpath = "//*[@id=\"main\"]/div[2]/div[1]/div[2]/div/table/tbody/tr/td[2]/div/form/div/div/div[1]/div[2]/input";
-        String loginButtonXpath = "//*[@id=\"main\"]/div[2]/div[1]/div[2]/div/table/tbody/tr/td[2]/div/form/div/div/div[2]/button";
-
-        WebDriver driver = userInfoRepository.getDriver();
-
-        /* login session */
-        WebElement element;
-        element = driver.findElement(By.xpath(idXpath));
-        element.sendKeys(loginInfo.getId());
-
-        element = driver.findElement(By.xpath(pwXpath));
-        element.sendKeys(loginInfo.getPw());
-
-        element = driver.findElement(By.xpath(loginButtonXpath));
-        element.submit();
-
-        /* alert click */
-        if(ExpectedConditions.alertIsPresent().apply(driver) != null) {
-            driver.switchTo().alert().accept();
-        }
-
-        /* login 성공여부 확인 */
-        String currentTitle = driver.getTitle();
-        if(currentTitle.equals(classNetTitle)) {
-            Map<String, String> cookies = new HashMap<>();
-            Set<Cookie> cookieSet = driver.manage().getCookies();
-            driver.quit();
-            for(Cookie cookie : cookieSet) {
-                cookies.put(cookie.getName(), cookie.getValue());
-            }
-            userInfoRepository.saveUserId(loginInfo.getId());
-            userInfoRepository.saveStudentId(convertStudentId(loginInfo.getId()));
-            userInfoRepository.saveCookie(cookies);
-            return true;
-        }
-        driver.quit();
-        return false;
-    }
-
-    @Override
-    public boolean logout() {
-        setDriver();
+        Map<String, String> cookies = getLoginCookie(loginInfo);
+        cookies.putAll(getCookie(cnUrl, cookies));
+        cookies.putAll(getCookie(cnMainUrl, cookies));
+        crawlUserInfo(cookies);
+        // 임시
         return true;
     }
 
     @Override
-    public void crawlUserInfo() {
-        String userAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36";
-        String userTotalGradeUrl = "https://cn.hongik.ac.kr/stud/P/01000/01000.jsp";
+    public boolean logout() {
+        // 임시
+        return true;
+    }
 
-        Document userTotalGradeDoc = null;
-
-        if(userInfoRepository.getCookie() == null) {
-            return;
-        }
-
+    @Override
+    public void crawlUserInfo(Map<String, String> cookies) {
+        Document gradeDoc;
         try {
-            userTotalGradeDoc = Jsoup.connect(userTotalGradeUrl)
+            gradeDoc = Jsoup.connect(gradeUrl)
                     .userAgent(userAgent)
-                    .cookies(userInfoRepository.getCookie())
+                    .cookies(cookies)
                     .timeout(3000)
                     .get();
-
         } catch(IOException | NullPointerException e) {
             System.out.println(e);
             return;
         }
 
         /* 총 취득학점 */
-        Element totalGradeTable = userTotalGradeDoc.getElementById("body").selectFirst(".table1").selectFirst("tbody");
+        Element totalGradeTable = gradeDoc.getElementById("body").selectFirst(".table1").selectFirst("tbody");
         String acquisition = totalGradeTable.child(0).children().last().children().text();
         userInfoRepository.saveAcquisition(acquisition);
 
         /* 전체 수강 과목 */
         Map<Long, String> takenClasses = new HashMap<>();
-        Elements semesters = userTotalGradeDoc.getElementById("body").select(".table0");
+        Elements semesters = gradeDoc.getElementById("body").select(".table0");
         for(Element gradeTable : semesters) {
             Elements rows = gradeTable.selectFirst("tbody").children();
             for(Element row : rows) {
@@ -129,6 +84,60 @@ public class UserServiceImpl implements UserService {
     @Override
     public List<Long> getClassifiedClasses(Long fieldId) {
         return null;
+    }
+
+    private Map<String, String> getLoginCookie(LoginInfo loginInfo) {
+        Map<String, String> cookies = new HashMap<>();
+        Map<String, String> loginData = new HashMap<>();
+        loginData.put("USER_ID", loginInfo.getId());
+        loginData.put("PASSWD", loginInfo.getPw());
+
+        Document loginPage = null;
+        try {
+            loginPage = Jsoup.connect(loginPageUrl)
+                    .timeout(5000)
+                    .userAgent(userAgent)
+                    .headers(headers)
+                    .data(loginData)
+                    .post();
+        } catch (IOException | NullPointerException e) {
+            System.out.println(e.getMessage());
+        }
+
+        String body = loginPage.body().html();
+
+        StringTokenizer st = new StringTokenizer(body, "('),; ");
+
+        while(st.hasMoreTokens()) {
+            if(st.nextToken().equals("SetCookie")) {
+                cookies.put(st.nextToken(), st.nextToken());
+            }
+        }
+
+        if(cookies.get("SUSER_ID") == null) {
+            return null;
+        }
+
+        return cookies;
+    }
+
+    private Map<String, String> getCookie(String url, Map<String, String> cookies) {
+        Connection.Response response = null;
+        try {
+            response = Jsoup.connect(url)
+                    .timeout(5000)
+                    .cookies(cookies)
+                    .userAgent(userAgent)
+                    .headers(headers)
+                    .method(Connection.Method.GET)
+                    .execute();
+        } catch (IOException | NullPointerException e) {
+            System.out.println(e.getMessage());
+        }
+
+        assert response != null;
+
+        return response.cookies();
     }
 
     private boolean isTakenClass(Elements subjectInfo) {
@@ -152,13 +161,5 @@ public class UserServiceImpl implements UserService {
         return Integer.toString(studentId);
     }
 
-    private void setDriver() {
-        String loginPageUrl = "http://www.hongik.ac.kr/login.do?Refer=https://cn.hongik.ac.kr/";
-        System.setProperty("webdriver.chrome.driver", "/Users/junhwan/projects/hongik-ee-info/chromedriver");
-        ChromeOptions options = new ChromeOptions();
-        options.addArguments("headless");
-        WebDriver driver = new ChromeDriver(options);
-        driver.get(loginPageUrl);
-        userInfoRepository.saveDriver(driver);
-    }
+
 }
