@@ -3,10 +3,8 @@ package info.hongik.ee.domain;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 
-@Entity
 public class Notice {
 
-    @Id
     private Long id;
     private String Title;
     private String Link;
