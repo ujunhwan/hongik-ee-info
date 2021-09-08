@@ -10,6 +10,7 @@ gradlew.bat
 
 ### SECRET_KEY ###
 **/SecurityServiceImpl.java
+**/SecurityRepository.java
 test/
 
 ### STS ###

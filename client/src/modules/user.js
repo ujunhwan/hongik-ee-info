@@ -1,10 +1,9 @@
 import axios from "axios";
+import qs from 'qs';
 
 const LOGIN_USER = "USER/login_user";
 const LOGOUT_USER = "USER/logout_user";
 const AUTH_USER = "USER/auth_user";
-
-const serverURL = "http://localhost:8080";
 
 const initState = {
   token: "",
@@ -40,7 +39,9 @@ export default function (state = initState, action) {
 
 export function loginUser(data) {
   const request = axios
-    .post(serverURL + "/api/user/login/", data)
+    .post("/api/user/login/", data, {
+      withCredentials: true,
+    })
     .then((response) => {
       console.log(response);
       return response.data;
@@ -53,7 +54,7 @@ export function loginUser(data) {
 }
 
 export function logoutUser() {
-  axios.get(serverURL + "/api/user/logout");
+  axios.get("/api/user/logout");
 
   return {
     type: LOGOUT_USER,

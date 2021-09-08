@@ -4,7 +4,12 @@ import { Link } from "react-router-dom";
 
 import "./CommonHeader.scss";
 
-const CommonHeader = ({ onLoginHandler, onLogoutHandler }) => {
+const CommonHeader = ({
+  onLoginHandler,
+  onLogoutHandler,
+  gradHandler,
+  currHandler,
+}) => {
   const isLogin = useSelector((state) => state.user.isLogin);
   return (
     <div className="header-wrapper">
@@ -16,9 +21,10 @@ const CommonHeader = ({ onLoginHandler, onLogoutHandler }) => {
         </div>
         <div className="right-area">
           <ul>
+
             <li>
-              <Link className="main" to="/">
-                HOME
+              <Link className="register" to="/register">
+                REGISTER
               </Link>
             </li>
             <li>
@@ -26,34 +32,32 @@ const CommonHeader = ({ onLoginHandler, onLogoutHandler }) => {
                 GRADUATION
               </Link>
             </li>
+            
             <li>
-              <Link className="curriculum" to="/curriculum">
-                CURRICULUM
-              </Link>
-            </li>
-            <li>
-              <Link className="subjects" to="/subjects">
-                SUBJECTS
-              </Link>
-            </li>
-            <li>
-              <Link className="about" to="/about">
-                ABOUT
+              <Link className="course" to="/course">
+                COURSE 
               </Link>
             </li>
 
             {!isLogin && (
               <li>
-                <a className="login" onClick={onLoginHandler}>
+                {/* <a className="login" onClick={onLoginHandler}>
                   LOGIN
-                </a>
+                </a> */}
+                <Link className="login" to="/login">
+                  LOGIN
+                </Link>
               </li>
             )}
             {isLogin && (
               <li>
-                <a className="logout" onClick={onLogoutHandler}>
+                {/* <a className="logout" onClick={onLogoutHandler}>
                   LOGOUT
-                </a>
+                </a> */}
+                <Link className="logout" to="/logout">
+                  LOGOUT 
+                </Link>
+
               </li>
             )}
           </ul>

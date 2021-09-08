@@ -5,7 +5,6 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Map;
 
-@Repository
 public interface UserInfoRepository {
     void saveCookie(Map<String, String> cookie);
 

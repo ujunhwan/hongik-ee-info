@@ -1,15 +1,15 @@
-import React, { Fragment, useState } from "react";
+import React, { Fragment, useEffect, useState } from "react";
 import LoginComponent from "../../components/login/LoginForm";
 import { useDispatch } from "react-redux";
 import { loginUser } from "../../modules/user";
 import { withRouter } from "react-router-dom";
 
+/* not using */
 function LoginContainer({ history, closeModalHandler }) {
-  // console.log(props);
   const dispatch = useDispatch();
 
-  const [Id, setId] = useState("");
-  const [Password, setPassword] = useState("");
+  const [id, setId] = useState("");
+  const [password, setPassword] = useState("");
 
   const onIdHandler = (event) => {
     setId(event.currentTarget.value);
@@ -23,16 +23,15 @@ function LoginContainer({ history, closeModalHandler }) {
     event.preventDefault();
 
     let body = {
-      Id: Id,
-      Pw: Password,
+      ID: id,
+      PASSWD: password,
     };
 
     dispatch(loginUser(body)).then((response) => {
-      console.log(response);
-
-      if (response.payload) {
+      if (response.payload.isLogin == "true") {
         history.replace("/");
         closeModalHandler();
+        localStorage.setItem("auth", response.payload.token);
       } else {
         alert("Login Error");
       }

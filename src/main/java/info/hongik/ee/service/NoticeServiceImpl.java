@@ -7,13 +7,16 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 
+@Service
 public class NoticeServiceImpl implements NoticeService {
 
     private final NoticeRepository noticeRepository;
 
+    @Autowired
     public NoticeServiceImpl(NoticeRepository noticeRepository) {
         this.noticeRepository = noticeRepository;
     }

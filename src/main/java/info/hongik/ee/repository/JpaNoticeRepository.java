@@ -1,10 +1,12 @@
 package info.hongik.ee.repository;
 
 import info.hongik.ee.domain.Notice;
+import org.springframework.stereotype.Repository;
 
 import javax.persistence.EntityManager;
 import java.util.List;
 
+@Repository
 public class JpaNoticeRepository implements NoticeRepository {
 
     private final EntityManager em;
