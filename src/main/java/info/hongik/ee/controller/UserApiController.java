@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -27,20 +28,20 @@ public class UserApiController {
     private final UserService userService;
     private final SecurityService securityService;
 
-    @GetMapping(value = "/graduation", produces = "application/json; charset=UTF-8")
-    public String graduationRequirement(HttpServletRequest request) {
-        System.out.println("/api/user/graduation");
-        return userService.getGraduationRequirement(request);
-    }
+//    @GetMapping(value = "/graduation", produces = "application/json; charset=UTF-8")
+//    public String graduationRequirement(HttpServletRequest request) {
+//        System.out.println("/api/user/graduation");
+//        return userService.getGraduationRequirement(request);
+//    }
 
     @GetMapping(value = "/courses", produces = "application/json; charset=UTF-8")
-    public List<Course> courseList(HttpServletRequest request) {
+    public List<Course> courseList(HttpServletRequest request) throws IOException {
         System.out.println("/api/user/courses");
         return userService.getCourses(request);
     }
 
     @PostMapping(value = "/login", produces = "application/json; charset=UTF-8")
-    public Map<String, String> loginPost(@RequestBody LoginDto loginDto, HttpServletResponse response) {
+    public Map<String, String> loginPost(@RequestBody LoginDto loginDto, HttpServletResponse response) throws IOException {
         System.out.println("/api/user/login");
         Map<String, String> loginCookie = userService.login(loginDto);
 

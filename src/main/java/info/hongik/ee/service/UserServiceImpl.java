@@ -3,7 +3,6 @@ package info.hongik.ee.service;
 import info.hongik.ee.domain.course.Course;
 import info.hongik.ee.domain.LoginDto;
 import info.hongik.ee.domain.user.User;
-import info.hongik.ee.repository.UserInfoRepository;
 import info.hongik.ee.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.jsoup.Connection;
@@ -19,13 +18,12 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.*;
 
+import static org.jsoup.Connection.*;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class UserServiceImpl implements UserService {
-    private final UserInfoRepository userInfoRepository;
-    private final ClassInfoRepository classInfoRepository;
-    private final ClassRepository classRepository;
     private final UserRepository userRepository;
 
 //    Map<String, String> headers = Map.of("content-type", "application/x-www-form-urlencoded");
@@ -36,54 +34,23 @@ public class UserServiceImpl implements UserService {
     private final String userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36";
 
     @Override
-    @Transactional
-    public Long join(User user) {
-        User findUser = userRepository.findBysId(user.getStudentId());
-        if (findUser != null) {
-            System.out.println(user.getStudentId() + "가 이미 존재합니다.");
-            return findUser.getId();
-        }
+    public Map<String, String> login(LoginDto loginDto) throws IOException {
+        String cnUrl = "https://cn.hongik.ac.kr";
+        String cnMainUrl = "https://cn.hongik.ac.kr/stud";
 
-        System.out.println(user.getStudentId() + "를 저장합니다.");
-        userRepository.save(user);
-        findUser = userRepository.findBysId(user.getStudentId());
-        return findUser.getId();
-    }
-
-    @Override
-    public User findBysId(String stdentId) {
-        return userRepository.findBysId(stdentId);
-    }
-
-    @Override
-    @Transactional
-    public Map<String, String> login(Map<String, String> loginInfo) {
         Map<String, String> cookies = new HashMap<>();
-        Map<String, String> loginCookie = getLoginCookie(loginInfo);
+        Map<String, String> loginCookie = getUserCookie(loginDto);
         if(loginCookie == null) {
             System.out.println("null in login function");
             return null;
         }
+//        cookies.putAll(loginCookie);
+//        cookies.putAll(getCookie(cnUrl, cookies));
+//        cookies.putAll(getCookie(cnMainUrl, cookies));
+
         cookies.putAll(loginCookie);
-        cookies.putAll(getCookie(cnUrl, cookies));
-        cookies.putAll(getCookie(cnMainUrl, cookies));
-
-        return cookies;
-    }
-
-    @Override
-    @Transactional
-    public Map<String, String> login(LoginDto loginDto) {
-
-        Map<String, String> cookies = new HashMap<>();
-        Map<String, String> loginCookie = getLoginCookie(loginDto);
-        if(loginCookie == null) {
-            System.out.println("null in login function");
-            return null;
-        }
-        cookies.putAll(loginCookie);
-        cookies.putAll(getCookie(cnUrl, cookies));
-        cookies.putAll(getCookie(cnMainUrl, cookies));
+        cookies.putAll(getCookie(cnUrl, cookies, getHeaders(null, null), null, Method.POST));
+        cookies.putAll(getCookie(cnMainUrl, cookies, getHeaders(null, null), null, Method.POST));
 
         return cookies;
     }
@@ -95,10 +62,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public List<Course> getCourses(HttpServletRequest request) {
+    public List<Course> getCourses(HttpServletRequest request) throws IOException {
         String url = "https://cn.hongik.ac.kr/stud/P/01000/01000.jsp";
         Map<String, String> cookies = extractCookie(request);
-        Document document = getDocument(url, extractCookie(request), 10000);
+//        Document document = getDocument(url, extractCookie(request), 10000);
+        Document document = getDocument(url, extractCookie(request), getHeaders(null, null), null, Method.POST);
 
         for (String key : cookies.keySet()) {
             System.out.println(key + " :: " + cookies.get(key));
@@ -125,7 +93,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public String getGraduationRequirement(HttpServletRequest request) {
+    public String getGraduationRequirement(HttpServletRequest request) throws IOException {
         String url = "https://cn.hongik.ac.kr/stud/E/04000/04010.jsp";
         String referer = "https://cn.hongik.ac.kr/stud/E/04000/04000.jsp";
 
@@ -143,7 +111,7 @@ public class UserServiceImpl implements UserService {
                 Map<String, String> formData = new HashMap<>();
                 formData.put("dept", dept);
                 formData.put("hakbun", "B615125");
-                Document document = getDocument(url, getHeaders(referer), extractCookie(request), 10000, formData);
+                Document document = getDocument(url, extractCookie(request), getHeaders(referer, null), formData, Method.POST);
                 Element element = document.selectFirst(".sub_title");
                 String text = element.text();
                 if (text.charAt(0) == '(') continue;
@@ -152,8 +120,6 @@ public class UserServiceImpl implements UserService {
                 System.out.println(deptCode);
             }
         }
-
-
 
         return null;
     }
@@ -178,7 +144,7 @@ public class UserServiceImpl implements UserService {
         /* 총 취득학점 */
         Element totalGradeTable = gradeDoc.getElementById("body").selectFirst(".table1").selectFirst("tbody");
         String acquisition = totalGradeTable.child(0).children().last().children().text();
-        userInfoRepository.saveAcquisition(acquisition);
+//        userInfoRepository.saveAcquisition(acquisition);
 
         /* 전체 수강 과목 */
         List<Course> classes = new ArrayList<>();
@@ -208,12 +174,7 @@ public class UserServiceImpl implements UserService {
         return classes;
     }
 
-    @Override
-    public List<Long> getClassifiedClasses(Long fieldId) {
-        return null;
-    }
-
-    private Map<String, String> getLoginCookie(LoginDto loginDto) {
+    private Map<String, String> getUserCookie(LoginDto loginDto) throws IOException {
         Map<String, String> cookies = new HashMap<>();
 
         Map<String, String> loginInfo = new HashMap<>();
@@ -221,18 +182,20 @@ public class UserServiceImpl implements UserService {
         loginInfo.put("USER_ID", loginDto.getId());
         loginInfo.put("PASSWD", loginDto.getPasswd());
 
-        Document loginPage = null;
-        try {
-            loginPage = Jsoup.connect(loginPageUrl)
-                    .timeout(10000)
-                    .userAgent(userAgent)
-                    .headers(getHeaders())
-                    .data(loginInfo)
-                    .post();
-        } catch (IOException | NullPointerException e) {
-            System.out.println(e.getMessage());
-            System.out.println("e = " + e);
-        }
+//        Document loginPage = null;
+//        try {
+//            loginPage = Jsoup.connect(loginPageUrl)
+//                    .timeout(10000)
+//                    .userAgent(userAgent)
+//                    .headers(getHeaders())
+//                    .data(loginInfo)
+//                    .post();
+//        } catch (IOException | NullPointerException e) {
+//            System.out.println(e.getMessage());
+//            System.out.println("e = " + e);
+//        }
+
+        Document loginPage = getDocument(loginPageUrl, null, getHeaders(null, null), loginInfo, Method.POST);
 
         System.out.println("loginPage = " + loginPage.body().html());
 
@@ -249,52 +212,31 @@ public class UserServiceImpl implements UserService {
         return cookies;
     }
 
-    private Map<String, String> getLoginCookie(Map<String, String> loginInfo) {
-        Map<String, String> cookies = new HashMap<>();
-
-        Document loginPage = null;
-        try {
-            loginPage = Jsoup.connect(loginPageUrl)
-                    .timeout(10000)
-                    .userAgent(userAgent)
-                    .headers(getHeaders())
-                    .data(loginInfo)
-                    .post();
-        } catch (IOException | NullPointerException e) {
-            System.out.println(e.getMessage());
-            System.out.println("e = " + e);
-        }
-
-        Optional<String> mayBody = Optional.ofNullable(loginPage.body().html());
-        String body = mayBody.orElse("0");
-        System.out.println(body);
-        StringTokenizer st = new StringTokenizer(body, "('),; ");
-        while(st.hasMoreTokens()) {
-            if(st.nextToken().equals("SetCookie")) {
-                cookies.put(st.nextToken(), st.nextToken());
-            }
-        }
-
-        if(cookies.get("SUSER_ID") == null) return null;
-        return cookies;
+    private Map<String, String> getCookie(String url, Map<String, String> cookies, Map<String, String> headers, Map<String, String> data, Method method) throws IOException {
+        return getResponse(url, cookies, headers, data, method).cookies();
     }
 
-    private Map<String, String> getCookie(String url, Map<String, String> cookies) {
-        Connection.Response response = null;
+    private Document getDocument(String url, Map<String ,String> cookies, Map<String, String> headers, Map<String, String> data, Method method) throws IOException {
+        return getResponse(url, cookies, headers, data, method).parse();
+    }
+
+    private Response getResponse(String url, Map<String, String> cookies, Map<String, String> headers, Map<String, String> data, Method method) throws IOException {
+        Connection conn = Jsoup.connect(url)
+                .timeout(3000)
+                .userAgent(userAgent)
+                .headers(headers)
+                .method(method);
+        if(cookies != null) conn.cookies(cookies);
+        if(data != null) conn.data(data);
+
+        Response response = null;
         try {
-            response = Jsoup.connect(url)
-                    .timeout(5000)
-                    .cookies(cookies)
-                    .userAgent(userAgent)
-                    .headers(getHeaders())
-                    .method(Connection.Method.GET)
-                    .execute();
-        } catch (IOException | NullPointerException e) {
+            response = conn.execute();
+        } catch (NullPointerException e) {
             System.out.println(e.getMessage());
         }
 
-        if(response == null) return null;
-        return response.cookies();
+        return response;
     }
 
     private boolean isTakenClass(Elements subjectInfo) {
@@ -337,92 +279,14 @@ public class UserServiceImpl implements UserService {
         return cookies;
     }
 
-    private Document getDocument(String url, Map<String, String> headers, Map<String, String> cookies, int timeout, Map<String, String> formData) {
-
-//        Map<String, String> headers = getHeaders("https://cn.hongik.ac.kr/stud/E/04000/04000.jsp");
-//        header.put("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-//        header.put("Content-Type", "application/x-www-form-urlencoded");
-////        header.put("Origin", "https://cn.hongik.ac.kr");
-//        header.put("Referer", "https://cn.hongik.ac.kr/stud/E/04000/04000.jsp");
-////        header.put("Accept-Encoding", "gzip, deflate, br");
-
-        Document document;
-        try {
-            document = Jsoup.connect(url)
-                    .headers(headers)
-                    .userAgent(userAgent)
-                    .cookies(cookies)
-                    .timeout(timeout)
-                    .data(formData)
-                    .post();
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
-
-        return document;
-    }
-
-    private Document getDocument(String url, Map<String, String> cookies, int timeout) {
-        Document document;
-        try {
-            document = Jsoup.connect(url)
-                    .userAgent(userAgent)
-                    .cookies(cookies)
-                    .timeout(timeout)
-                    .get();
-        } catch (IOException | NullPointerException e) {
-            System.out.println("e = " + e);
-            return null;
-        }
-
-        return document;
-    }
-
-    private Document getDocumentByGet(String url, Map<String, String> cookies, int timeout) {
-        Document document;
-        try {
-            document = Jsoup.connect(url)
-                    .userAgent(userAgent)
-                    .cookies(cookies)
-                    .timeout(timeout)
-                    .get();
-        } catch(IOException | NullPointerException e) {
-            System.out.println("error = " + e);
-            return null;
-        }
-
-        return document;
-    }
-
-    private Map<String, String> getHeaders() {
+    private Map<String, String> getHeaders(String referer, String origin) {
         Map<String, String> headers = new HashMap<>();
         headers.put("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
         headers.put("Content-Type", "application/x-www-form-urlencoded");
         headers.put("Accept-Encoding", "gzip, deflate, br");
-
-        return headers;
-    }
-
-    private Map<String, String> getHeaders(String referer) {
-        Map<String, String> headers = new HashMap<>();
-        headers.put("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-        headers.put("Content-Type", "application/x-www-form-urlencoded");
-        headers.put("Origin", "https://cn.hongik.ac.kr");
-        headers.put("Referer", referer);
-        headers.put("Accept-Encoding", "gzip, deflate, br");
-
-        return headers;
-    }
-
-    private Map<String, String> getHeaders(String referer, String Origin) {
-        Map<String, String> headers = new HashMap<>();
-        headers.put("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-        headers.put("Content-Type", "application/x-www-form-urlencoded");
-        headers.put("Origin", Origin);
-        headers.put("Referer", referer);
-        headers.put("Accept-Encoding", "gzip, deflate, br");
-
+        if(referer != null) headers.put("Referer", referer);
+        if(origin != null) headers.put("Origin", origin);
+        else headers.put("Origin", "https://cn.hongik.ac.kr");
         return headers;
     }
 }
