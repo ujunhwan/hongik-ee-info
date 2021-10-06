@@ -2,6 +2,7 @@ package info.hongik.ee.controller;
 
 import info.hongik.ee.domain.course.Course;
 import info.hongik.ee.domain.LoginDto;
+import info.hongik.ee.domain.course.CourseDto;
 import info.hongik.ee.domain.user.User;
 import info.hongik.ee.service.SecurityService;
 import info.hongik.ee.service.UserService;
@@ -35,7 +36,7 @@ public class UserApiController {
 //    }
 
     @GetMapping(value = "/courses", produces = "application/json; charset=UTF-8")
-    public List<Course> courseList(HttpServletRequest request) throws IOException {
+    public List<CourseDto> courseList(HttpServletRequest request) throws IOException {
         System.out.println("/api/user/courses");
         return userService.getCourses(request);
     }
