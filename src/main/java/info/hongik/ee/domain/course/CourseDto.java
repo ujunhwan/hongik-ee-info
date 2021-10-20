@@ -1,15 +1,22 @@
 package info.hongik.ee.domain.course;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+import lombok.NoArgsConstructor;
 
 @Getter
-@RequiredArgsConstructor
+@AllArgsConstructor
+@NoArgsConstructor
 public class CourseDto {
-    private final String name;
-    private final String number;
-    private final String credit;
-    private final String grade;
-    private final String type;
+    private String courseName;
+    private String courseNumber;
+    private String credit;
+    private CourseEnum type;
+
+    public CourseDto(Course course) {
+        this.courseName = course.getCourseName();
+        this.courseNumber = course.getCourseNumber();
+        this.credit = course.getCredit();
+        this.type = course.getType();
+    }
 }
