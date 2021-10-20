@@ -1,4 +1,4 @@
-package info.hongik.ee.domain;
+package info.hongik.ee.domain.user;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;

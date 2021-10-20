@@ -1,5 +1,7 @@
 package info.hongik.ee.domain.user;
 
+import info.hongik.ee.domain.base.BaseEntity;
+import info.hongik.ee.domain.base.BaseTimeEntity;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -10,24 +12,18 @@ import javax.persistence.Id;
 import java.time.LocalDateTime;
 
 @Entity @Getter
-public class User {
-    @Id @GeneratedValue
-    @Column(name = "user_id")
-    private Long id;
-
+public class User extends BaseEntity {
     private String studentId;
     private String year;
     private String major;
-    private LocalDateTime updateDate;
 
     public User() {
     }
 
-    public User(String studentId, String year, String major, LocalDateTime updateDate) {
+    public User(String studentId, String year, String major) {
         this.studentId = studentId;
         this.year = year;
         this.major = major;
-        this.updateDate = updateDate;
     }
 }
 
