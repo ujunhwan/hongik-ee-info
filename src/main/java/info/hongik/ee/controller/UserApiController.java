@@ -1,22 +1,17 @@
 package info.hongik.ee.controller;
 
-import info.hongik.ee.domain.course.Course;
-import info.hongik.ee.domain.LoginDto;
+import info.hongik.ee.domain.user.GraduationDto;
+import info.hongik.ee.domain.user.LoginDto;
 import info.hongik.ee.domain.course.CourseDto;
-import info.hongik.ee.domain.user.User;
 import info.hongik.ee.service.SecurityService;
 import info.hongik.ee.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -29,16 +24,11 @@ public class UserApiController {
     private final UserService userService;
     private final SecurityService securityService;
 
-//    @GetMapping(value = "/graduation", produces = "application/json; charset=UTF-8")
-//    public String graduationRequirement(HttpServletRequest request) {
-//        System.out.println("/api/user/graduation");
-//        return userService.getGraduationRequirement(request);
-//    }
-
     @GetMapping(value = "/courses", produces = "application/json; charset=UTF-8")
     public List<CourseDto> courseList(HttpServletRequest request) throws IOException {
         System.out.println("/api/user/courses");
-        return userService.getCourses(request);
+//        return userService.getCourses(request);
+        return null;
     }
 
     @PostMapping(value = "/login", produces = "application/json; charset=UTF-8")
@@ -46,10 +36,9 @@ public class UserApiController {
         System.out.println("/api/user/login");
         Map<String, String> loginCookie = userService.login(loginDto);
 
+        // AUTH 과정 추가해야됨
         if(loginCookie != null) {
             loginCookie.forEach((key, value) -> {
-                System.out.println("key = " + key);
-                System.out.println("value = " + value);
                 Cookie cookie = new Cookie(key, value);
                 cookie.setMaxAge(60*60); // 1 hour
                 cookie.setPath("/");
@@ -97,5 +86,10 @@ public class UserApiController {
         return true;
     }
 
+    // cookie에서 학번 추출 ! ! !
+    @GetMapping(value="/graduation")
+    public GraduationDto getGraduationRequirement(HttpServletRequest request) throws IOException {
+        return userService.getGraduationRequirement(request);
+    }
 
 }
